@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.example.hmmmk.floatingline.MainActivity">
+
+    <LinearLayout
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:orientation="horizontal"
+        android:weightSum="3">
+
+        <Button
+            android:id="@+id/start_btn"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Start"
+            android:layout_weight="1"/>
+
+        <Spinner
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:id="@+id/wave_period_spn"
+            android:layout_weight="1"
+            android:entries="@array/wave_period_entries"/>
+
+        <Spinner
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:id="@+id/wave_height_spn"
+            android:layout_weight="1"
+            android:entries="@array/wave_height_entries" />
+
+    </LinearLayout>
+
+    <com.example.hmmmk.floatingline.FloatingView
+        android:id="@+id/floating_view"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:layout_gravity="center_horizontal|center_vertical" />
+
+</LinearLayout>

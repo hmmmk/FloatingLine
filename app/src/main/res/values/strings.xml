@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">FloatingLine</string>
+
+    <string-array name="wave_height_entries">
+        <item>0</item>
+        <item>5</item>
+        <item>15</item>
+        <item>45</item>
+        <item>85</item>
+    </string-array>
+
+    <string-array name="wave_period_entries">
+        <item>0</item>
+        <item>0.05</item>
+        <item>0.1</item>
+        <item>0.15</item>
+        <item>0.2</item>
+    </string-array>
+</resources>
