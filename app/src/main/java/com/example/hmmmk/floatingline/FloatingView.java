@@ -7,9 +7,12 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
+import android.os.Bundle;
 import android.util.AttributeSet;
 import android.view.Display;
 import android.view.View;
+import android.speech.RecognitionListener;
+import android.widget.Toast;
 
 import java.util.LinkedList;
 
@@ -78,15 +81,39 @@ public class FloatingView extends View {
                 for (int i = 2; i < coordinatesList.size(); i++) {
 
                     if (i > 0) {
-                        float fX = coordinatesList.get(i - 1).x;
-                        float fY = coordinatesList.get(i - 1).y;
+                        //float ffX = coordinatesList.get(i - 1).xDevice;
+                        //float ffY = coordinatesList.get(i - 1).y + 200;
 
-                        float cX = coordinatesList.get(i).x;
-                        float cY = coordinatesList.get(i).y;
+                        float cfX = coordinatesList.get(i).xDevice;
+                        float cfY = coordinatesList.get(i).y + 200;
 
-                        canvas.drawLine(fX, fY, cX, cY, paint);
+                        //float fsX = coordinatesList.get(i - 1).xDevice;
+                        //float fsY = coordinatesList.get(i - 1).secY + 200;
+
+                        float csX = coordinatesList.get(i).xDevice;
+                        float csY = coordinatesList.get(i).secY + 200;
+
+                        //float ftX = coordinatesList.get(i - 1).xDevice;
+                        //float ftY = coordinatesList.get(i - 1).thrdY + 200;
+
+                        float ctX = coordinatesList.get(i).xDevice;
+                        float ctY = coordinatesList.get(i).thrdY + 200;
+
+                        //if ((Math.abs(ffY - cfY) >= 1) | ffY - cfY == 0)
+                            //canvas.drawLine(ffX, ffY, cfX, cfY, paint);
+                        //if ((Math.abs(fsY - csY) >= 1) | fsY - csY == 0)
+                            //canvas.drawLine(fsX, fsY, csX, csY, paint);
+                        //if ((Math.abs(ftY - ctY) >= 1) | ftY - ctY == 0)
+                            //canvas.drawLine(ftX, ftY, ctX, ctY, paint);
+                        //canvas.drawLine(fX, fY, cX, cY, paint);
                         //path.quadTo(fX, fY, cX, cY);
                         //canvas.drawPath(path, paint);
+                        //canvas.drawCircle(cfX, cfY, 2, paint);
+                        //canvas.drawCircle(csX, csY, 2, paint);
+                        //canvas.drawCircle(ctX, ctY, 2, paint);
+                        //canvas.drawPoint(cfX, cfY, paint);
+                        //canvas.drawPoint(csX, csY, paint);
+                        //canvas.drawPoint(ctX, ctY, paint);
                     }
                 }
 
@@ -101,11 +128,13 @@ public class FloatingView extends View {
     }
 
     private void initCoordinates() {
-        float x = 540;
-        float y = 100;
+        int x = 540;
+        int y = 100;
+        int xBound = x/2;
 
-        for (int i = 0; i <= 540; i++) {
-            coordinatesList.add(new Coordinates(x, y));
+
+        for (int i = -xBound; i <= xBound; i++) {
+            coordinatesList.add(new Coordinates(x, i, y, y, y));
             x -= 1;
         }
 
@@ -158,31 +187,37 @@ public class FloatingView extends View {
         values.add(value);
     }
 
+    public boolean isStarted = false;
+
     public void start() {
 
-        final DrawHelper helper = new DrawHelper();
+        if (!isStarted) {
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                do {
+            final DrawHelper helper = new DrawHelper();
 
-                    //((MainActivity) context).runOnUiThread(helper);
-                    if (!values.isEmpty()) {
-                        modifyCoordinates(values.peekFirst(), true);
-                    }
-                    try {
-                        Thread.sleep(50);
-                    }
-                    catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                } while(true);
-            }
-        }).start();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    do {
+
+                        //((MainActivity) context).runOnUiThread(helper);
+                        if (!values.isEmpty()) {
+                            modifyCoordinates(values.pollFirst(), true);
+                        }
+                        try {
+                            Thread.sleep(50);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    } while (true);
+                }
+            }).start();
+        }
+
+        isStarted = true;
     }
 
-    private void coordinateAdjustment() {
+    /*private void coordinateAdjustment() {
         for (int i = coordinatesList.size() - 1; i > 0; i--) {
             float x = coordinatesList.get(i).x;
 
@@ -191,30 +226,67 @@ public class FloatingView extends View {
             else
                 coordinatesList.get(i).x = x - 1f;
         }
-    }
+    }*/
 
     final DrawHelper helper = new DrawHelper();
 
-    private void modifyCoordinates(float val, boolean isDecrease) {
+    private volatile float oldAtt = 3f;
+
+    private synchronized void modifyCoordinates(float val, boolean a) {
         //formula gfn(x) = (K/K+x^4)^k
         //formula line(att) = (A*gfn(x) * cos(Bx - f))/att
+        //Bounds of function is -1.5 n 1.5
+        //Bounds of drawing axis are dynamic but in the current version they are fixed (0; 540)
 
         float x;
         float K = 8;
-        float att = 1;
-        float A = 1;
-        float B = 6;
+        float attF;//Must be set in range [0.05; 25]
+        float oldAtt;
+        float A = 10;
+        float B = 10;
         float F = 0;
         double gfn;
+        boolean isDecrease;
 
-        for (int i = coordinatesList.size() - 1; i >= 0; i--) {
-            x = coordinatesList.get(i).x;
-            gfn = Math.pow(K / ( K + Math.pow(x, 5)), K);
+        oldAtt = this.oldAtt;
+        attF = (float) ((val * (3 - 0.05) / 15) - 0.05f);
 
-            coordinatesList.get(i).y = (float) (A * gfn * Math.cos((B * x) - F))/att;
-        }
+        this.oldAtt = attF;
 
-        ((Activity) context).runOnUiThread(helper);
+        do {
+            for (int i = 0; i < coordinatesList.size(); i++) {
+                x = coordinatesList.get(i).xFunction;
+
+                if (x >= 0)
+                    x = (float) (((x * (1.5 - 0)) / 270) + 0);
+                else
+                    x = (float) -(((x * (1.5 - 0)) / 270) + 0);
+                gfn = Math.pow(K / (K + Math.pow(x, 5)), K);
+
+                coordinatesList.get(i).y = (float) (A * gfn * Math.cos((B * x) - F)) / oldAtt;
+                coordinatesList.get(i).secY = (float) (A * gfn * Math.cos((B * x) - F)) / (oldAtt + 0.1f);
+                coordinatesList.get(i).thrdY = (float) (A * gfn * Math.cos((B * x) - F)) / (oldAtt + 0.2f);
+            }
+
+            ((Activity) context).runOnUiThread(helper);
+
+            if (oldAtt < attF) {
+                isDecrease = false;
+                oldAtt += 0.01;
+            }
+            else {
+                isDecrease = true;
+                oldAtt -= 0.01;
+            }
+
+            try {
+                Thread.sleep(10);
+            }
+            catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        } while ((isDecrease & oldAtt >= attF) | (!isDecrease & oldAtt <= attF));
     }
 
     public void clear() {
@@ -251,32 +323,48 @@ public class FloatingView extends View {
         public void run() {
             invalidate();
         }
-
-        /*public void addToQueue(Float val) {
-            values.add(val);
-        }*/
     }
 
     class Coordinates {
 
-        float x;
-        float y;
+        private float xDevice;
+        private float xFunction;
+        private float y;
+        private float secY;
+        private float thrdY;
 
         Coordinates () {
 
         }
 
-        Coordinates (float x, float y) {
-            this.x = x;
+        Coordinates (float xDevice, float xFunction, float y) {
+            this.xDevice = xDevice;
+            this.xFunction = xFunction;
             this.y = y;
         }
 
-        public float getX() {
-            return x;
+        public Coordinates(float xDevice, float xFunction, float y, float secY, float thrdY) {
+            this.xDevice = xDevice;
+            this.xFunction = xFunction;
+            this.y = y;
+            this.secY = secY;
+            this.thrdY = thrdY;
         }
 
-        public void setX(float x) {
-            this.x = x;
+        public float getXDevice() {
+            return xDevice;
+        }
+
+        public void setXDevice(float xDevice) {
+            this.xDevice = xDevice;
+        }
+
+        public float getXFunction() {
+            return xFunction;
+        }
+
+        public void setXFunction(float xFunction) {
+            this.xFunction = xFunction;
         }
 
         public float getY() {
@@ -285,6 +373,22 @@ public class FloatingView extends View {
 
         public void setY(float y) {
             this.y = y;
+        }
+
+        public float getSecY() {
+            return secY;
+        }
+
+        public void setSecY(float secY) {
+            this.secY = secY;
+        }
+
+        public float getThrdY() {
+            return thrdY;
+        }
+
+        public void setThrdY(float thrdY) {
+            this.thrdY = thrdY;
         }
     }
 }
