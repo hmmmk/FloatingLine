@@ -9,6 +9,7 @@ import android.graphics.Path;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.Display;
 import android.view.View;
 import android.speech.RecognitionListener;
@@ -23,7 +24,7 @@ import java.util.LinkedList;
 public class FloatingView extends View {
 
     private LinkedList<Coordinates> coordinatesList = new LinkedList<>();
-    private final LinkedList<Float> values = new LinkedList<>();
+    private final LinkedList<Double> values = new LinkedList<>();
 
     private Paint paint = new Paint();
 
@@ -81,30 +82,30 @@ public class FloatingView extends View {
                 for (int i = 2; i < coordinatesList.size(); i++) {
 
                     if (i > 0) {
-                        //float ffX = coordinatesList.get(i - 1).xDevice;
-                        //float ffY = coordinatesList.get(i - 1).y + 200;
+                        float ffX = coordinatesList.get(i - 1).xDevice;
+                        float ffY = coordinatesList.get(i - 1).y + 200;
 
                         float cfX = coordinatesList.get(i).xDevice;
                         float cfY = coordinatesList.get(i).y + 200;
 
-                        //float fsX = coordinatesList.get(i - 1).xDevice;
-                        //float fsY = coordinatesList.get(i - 1).secY + 200;
+                        float fsX = coordinatesList.get(i - 1).xDevice;
+                        float fsY = coordinatesList.get(i - 1).secY + 200;
 
                         float csX = coordinatesList.get(i).xDevice;
                         float csY = coordinatesList.get(i).secY + 200;
 
-                        //float ftX = coordinatesList.get(i - 1).xDevice;
-                        //float ftY = coordinatesList.get(i - 1).thrdY + 200;
+                        float ftX = coordinatesList.get(i - 1).xDevice;
+                        float ftY = coordinatesList.get(i - 1).thrdY + 200;
 
                         float ctX = coordinatesList.get(i).xDevice;
                         float ctY = coordinatesList.get(i).thrdY + 200;
 
                         //if ((Math.abs(ffY - cfY) >= 1) | ffY - cfY == 0)
-                            //canvas.drawLine(ffX, ffY, cfX, cfY, paint);
+                            canvas.drawLine(ffX, ffY, cfX, cfY, paint);
                         //if ((Math.abs(fsY - csY) >= 1) | fsY - csY == 0)
-                            //canvas.drawLine(fsX, fsY, csX, csY, paint);
+                            canvas.drawLine(fsX, fsY, csX, csY, paint);
                         //if ((Math.abs(ftY - ctY) >= 1) | ftY - ctY == 0)
-                            //canvas.drawLine(ftX, ftY, ctX, ctY, paint);
+                            canvas.drawLine(ftX, ftY, ctX, ctY, paint);
                         //canvas.drawLine(fX, fY, cX, cY, paint);
                         //path.quadTo(fX, fY, cX, cY);
                         //canvas.drawPath(path, paint);
@@ -183,7 +184,7 @@ public class FloatingView extends View {
         invalidate();*/
     }
 
-    public void addValue(float value) {
+    public void addValue(double value) {
         values.add(value);
     }
 
@@ -230,18 +231,19 @@ public class FloatingView extends View {
 
     final DrawHelper helper = new DrawHelper();
 
-    private volatile float oldAtt = 3f;
+    private volatile double oldAtt = 1;
+    private static final int TOP_DP_BOUND = 96*2;
 
-    private synchronized void modifyCoordinates(float val, boolean a) {
+    private synchronized void modifyCoordinates(double val, boolean a) {
         //formula gfn(x) = (K/K+x^4)^k
         //formula line(att) = (A*gfn(x) * cos(Bx - f))/att
         //Bounds of function is -1.5 n 1.5
         //Bounds of drawing axis are dynamic but in the current version they are fixed (0; 540)
 
-        float x;
-        float K = 8;
-        float attF;//Must be set in range [0.05; 25]
-        float oldAtt;
+        double x;
+        double K = 8;
+        double attF;//Must be set in range [0.05; 25]
+        double oldAtt;
         float A = 10;
         float B = 10;
         float F = 0;
@@ -249,7 +251,27 @@ public class FloatingView extends View {
         boolean isDecrease;
 
         oldAtt = this.oldAtt;
-        attF = (float) ((val * (3 - 0.05) / 15) - 0.05f);
+
+        final double localVal = val;
+
+        val = TOP_DP_BOUND - val;
+
+        attF = (double) ((val * (1 - 0.05) / TOP_DP_BOUND) - 0.05f);
+
+        Log.d("ATT", attF + "");
+
+        if (attF < 0.05)
+            attF = 0.05f;
+
+        final double attFLocal = attF;
+
+        /*((Activity) context).runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(context, "val : " + localVal + " | " + "att : " + attFLocal, Toast.LENGTH_SHORT).show();
+            }
+        });*/
+
 
         this.oldAtt = attF;
 
@@ -263,9 +285,9 @@ public class FloatingView extends View {
                     x = (float) -(((x * (1.5 - 0)) / 270) + 0);
                 gfn = Math.pow(K / (K + Math.pow(x, 5)), K);
 
-                coordinatesList.get(i).y = (float) (A * gfn * Math.cos((B * x) - F)) / oldAtt;
-                coordinatesList.get(i).secY = (float) (A * gfn * Math.cos((B * x) - F)) / (oldAtt + 0.1f);
-                coordinatesList.get(i).thrdY = (float) (A * gfn * Math.cos((B * x) - F)) / (oldAtt + 0.2f);
+                coordinatesList.get(i).y = (float) ((A * gfn * Math.cos((B * x) - F)) / oldAtt);
+                coordinatesList.get(i).secY = (float) ((A * gfn * Math.cos((B * x) - F)) / (oldAtt + 0.07f));
+                coordinatesList.get(i).thrdY = (float) ((A * gfn * Math.cos((B * x) - F)) / (oldAtt+ 0.03f));
             }
 
             ((Activity) context).runOnUiThread(helper);
@@ -280,7 +302,7 @@ public class FloatingView extends View {
             }
 
             try {
-                Thread.sleep(10);
+                Thread.sleep(20);
             }
             catch (InterruptedException e) {
                 e.printStackTrace();

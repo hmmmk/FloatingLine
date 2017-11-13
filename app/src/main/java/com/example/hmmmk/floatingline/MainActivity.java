@@ -1,29 +1,41 @@
 package com.example.hmmmk.floatingline;
 
+import android.content.Context;
 import android.content.Intent;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Random;
 
-public class MainActivity extends AppCompatActivity implements RecognitionListener {
+public class MainActivity extends AppCompatActivity implements RecordResultHandler /* implements RecognitionListener*/ {
+
+    private Context context = this;
+    private MainActivity activity = this;
 
     private Button startBtn;
     private FloatingView floatingView;
     private Spinner periodSpn;
     private Spinner wHeightSpn;
 
-    private SpeechRecognizer sr;
+    private final SendHelper sh = new SendHelper();
+
+    int[] rates = {8000, 11025, 22050, 44100, 48000/*, 96000 */};
+    int[] channels = {AudioFormat.CHANNEL_IN_MONO, AudioFormat.CHANNEL_IN_STEREO};
+    int[] encodings  = {AudioFormat.ENCODING_PCM_8BIT, AudioFormat.ENCODING_PCM_16BIT};
+
+    //private SpeechRecognizer sr;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,8 +47,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         periodSpn = findViewById(R.id.wave_period_spn);
         wHeightSpn = findViewById(R.id.wave_height_spn);
 
-        sr = SpeechRecognizer.createSpeechRecognizer(this);
-        sr.setRecognitionListener(this);
+        /*sr = SpeechRecognizer.createSpeechRecognizer(this);
+        sr.setRecognitionListener(this);*/
 
 
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
@@ -45,7 +57,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,5);
 
-        sr.startListening(intent);
+        //sr.startListening(intent);
 
         startBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -55,11 +67,16 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 //floatingView.setPeriod(Float.valueOf(periodSpn.getSelectedItem().toString()));
                 //floatingView.setWaveHeight(Float.valueOf(wHeightSpn.getSelectedItem().toString()));
 
-                final Random r = new Random(System.currentTimeMillis());
-                final SendHelper sh = new SendHelper();
+                //final Random r = new Random(System.currentTimeMillis());
 
+                AudioFormatInfo info = getFormat();
+                
+                AudioReceiverRunnable audioReceiver = new AudioReceiverRunnable(context, sh, /*info,*/
+                        activity);
 
-                new Thread(new Runnable() {
+                new Thread(audioReceiver).start();
+
+                /*new Thread(new Runnable() {
 
                     float count = 0.25f;
 
@@ -68,14 +85,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                         do {
 
                             //sh.setCurrentValue(r.nextInt(200));
-                            sh.setCurrentValue((float) ((Math.random() * 15f) + 0));
-
-                            /*if (count < 10) {
-                                count += 1f;
-                            }
-                            else {
-                                count = 1f;
-                            }*/
+                            sh.setCurrentValue((int) ((Math.random() * 15f) + 0));
 
                             //sh.setCurrentValue(count);
 
@@ -87,70 +97,131 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                             }
                         } while (true);
                     }
-                }).start();
+                }).start();*/
             }
         });
     }
 
-    @Override
-    public void onReadyForSpeech(Bundle params) {
-        Toast.makeText(this, "WORKS", Toast.LENGTH_SHORT).show();
+    public AudioFormatInfo getFormat() {
+        AudioFormatInfo info = new AudioFormatInfo();
+
+        for(int enc : encodings)
+        {
+            for(int ch : channels)
+            {
+                for(int rate : rates)
+                {
+                    int t = AudioRecord.getMinBufferSize(rate, ch, enc);
+
+                    if((t != AudioRecord.ERROR) && (t != AudioRecord.ERROR_BAD_VALUE)) {
+                        info.setAudioFormat(enc);
+                        info.setChannelConfig(ch);
+                        info.setSampleRateInHz(rate);
+                    }
+
+                }
+            }
+        }
+
+        return info;
     }
 
-    @Override
-    public void onRmsChanged(float rmsdB) {
-        Toast.makeText(this, "RMS CHANGED " + rmsdB, Toast.LENGTH_SHORT).show();
-    }
+    short max = 0;
+    short min = 0;
 
     @Override
-    public void onEvent(int eventType, Bundle params) {
-        Toast.makeText(this, "WORKS", Toast.LENGTH_SHORT).show();
+    public void receiveResults(final short[] buffers) {
+        final StringBuilder byteResult = new StringBuilder();
+
+        //if (Collections.max(Arrays.asList(buffers)) > max)
+        /*for (int i = 0; i < buffers.length; i++) {
+            if (buffers[i] > max)
+                max = buffers[i];
+
+            if (buffers[i] < min)
+                min = buffers[i];
+        }*/
+
+        for (short buff : buffers) {
+            byteResult.append(String.valueOf(buff));
+            byteResult.append(":");
+        }
+
+        for (int x = 0; x < 540; x++) {
+            //int index = (int) (((x * 1.0f) / 540) * buffers.length);
+            double db = 0;
+
+            if (buffers[x] != 0) {
+                db = (20 * Math.log10(((double) Math.abs(buffers[x]) / 8)))
+                    /*SignalPower.calculatePowerDb(buffers, x, 1)
+                    getAudioVolume(buffers)*/;
+                //Log.d("BUFFERS", buffers[index] + "");
+                //Log.d("TAG", db + "");
+            }
+
+            if (sh.getCurrentValue() != db) {
+                Log.d("TAG", (db + 96) + "");
+                sh.setCurrentValue(db + 96);
+            }
+
+            runOnUiThread(sh);
+        }
+
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                //Toast.makeText(context, /*byteResult.toString()*/ getAudioVolume(buffers) + "",
+                  //      Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
-    @Override
-    public void onPartialResults(Bundle partialResults) {
-        Toast.makeText(this, "WORKS", Toast.LENGTH_SHORT).show();
-    }
+    /**
+     * Functionality that gets the sound level out of the sample
+     */
+    private float getAudioVolume(short [] buffer) {
 
-    @Override
-    public void onBufferReceived(byte[] buffer) {
-        Toast.makeText(this, "WORKS", Toast.LENGTH_SHORT).show();
-    }
+        float lastLevel = 0;
 
-    @Override
-    public void onResults(Bundle results) {
-        Toast.makeText(this, "WORKS", Toast.LENGTH_SHORT).show();
-    }
+        try {
 
-    @Override
-    public void onBeginningOfSpeech() {
-        Toast.makeText(this, "WORKS", Toast.LENGTH_SHORT).show();
-    }
+            int bufferReadResult;
 
-    @Override
-    public void onEndOfSpeech() {
-        Toast.makeText(this, "WORKS", Toast.LENGTH_SHORT).show();
-    }
+            if (buffer != null && buffer.length > 0) {
 
-    @Override
-    public void onError(int error) {
-        Toast.makeText(this, "ERROR " + error, Toast.LENGTH_SHORT).show();
+                // Sense the voice…
+
+                bufferReadResult = buffer.length;
+                double sumLevel = 0;
+
+                for (int i = 0; i < bufferReadResult; i++) {
+                    sumLevel += buffer[i];
+                }
+
+                lastLevel = (float) Math.abs((sumLevel / bufferReadResult));
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return lastLevel;
     }
 
     class SendHelper implements Runnable {
 
-        private float currentValue = 0;
+        private double currentValue = 0;
 
         @Override
         public void run() {
             floatingView.addValue(currentValue);
         }
 
-        public float getCurrentValue() {
+        public double getCurrentValue() {
             return currentValue;
         }
 
-        public void setCurrentValue(float currentValue) {
+        public void setCurrentValue(double currentValue) {
             this.currentValue = currentValue;
         }
     }
