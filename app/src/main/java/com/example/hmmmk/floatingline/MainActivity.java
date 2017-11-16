@@ -18,7 +18,7 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
     //private FloatingView floatingView;
     private Spinner periodSpn;
     private Spinner wHeightSpn;
-    private NewFloatingView newFloatingView;
+    private WaveView waveView;
 
     private final SendHelper sh = new SendHelper();
 
@@ -29,7 +29,7 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
 
         startBtn = findViewById(R.id.start_btn);
         //floatingView = findViewById(R.id.floating_view);
-        newFloatingView = findViewById(R.id.new_floating_view);
+        waveView = findViewById(R.id.new_floating_view);
         periodSpn = findViewById(R.id.wave_period_spn);
         wHeightSpn = findViewById(R.id.wave_height_spn);
 
@@ -39,32 +39,10 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
                 //floatingView.clear();
                 //floatingView.start();
 
-                //AudioReceiverRunnable audioReceiver = new AudioReceiverRunnable(context, activity);
+                AudioReceiverRunnable audioReceiver = new AudioReceiverRunnable(context, activity);
 
-                //new Thread(audioReceiver).start();
-                newFloatingView.start();
-
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        for (int i = -61; i <= 61; i++) {
-                            final int l = i;
-                            activity.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    newFloatingView.updateWithLevel(normalizedDecibels(l));
-                                }
-                            });
-
-                            try {
-                                Thread.sleep(100);
-                            }
-                            catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                }).start();
+                new Thread(audioReceiver).start();
+                waveView.start();
             }
         });
     }
@@ -72,28 +50,33 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
     @Override
     public void receiveResults(final short[] buffers) {
         int local = 0;
+        double decibels = 0;
 
         for (int i = 0; i < buffers.length; i++) {
-            local += Math.abs(buffers[i]);
+            local += buffers[i];
         }
 
         local /= buffers.length;
 
-       // Log.d("BUFFER", + local + "");
-        sh.setCurrentValue(local);
+        /*if (local > 0)
+            decibels = (20 * Math.log10((double) local / Short.MAX_VALUE));
+        if (local < 0)
+            decibels = -(20 * Math.log10((double) local / Short.MAX_VALUE));*/
 
-        /*try {
-            Thread.sleep(45);
+        sh.setCurrentValue(normalizedDecibels(local));
+
+        try {
+            Thread.sleep(40);
         }
         catch (InterruptedException e) {
             e.printStackTrace();
-        }*/
+        }
 
         runOnUiThread(sh);
     }
 
-    private Float normalizedDecibels(float db) {
-        if (db < -60.0f || db == 0.0f) {
+    private float normalizedDecibels(float db) {
+        if (db < -60.0f) {
             return 0.0f;
         }
 
@@ -109,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
         @Override
         public void run() {
             if (numberOfVals == 5) {
-                //floatingView.addValue(currentValue);
+                waveView.addValue((float) currentValue);
 
                 numberOfVals = 0;
                 currentValue = 0;
