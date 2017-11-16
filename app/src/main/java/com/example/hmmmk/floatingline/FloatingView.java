@@ -1,5 +1,6 @@
 package com.example.hmmmk.floatingline;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -7,15 +8,14 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
-import android.os.Bundle;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Display;
 import android.view.View;
-import android.speech.RecognitionListener;
-import android.widget.Toast;
+import android.view.ViewTreeObserver;
 
 import java.util.LinkedList;
+import java.util.NoSuchElementException;
 
 /**
  * Created by hmmmk___ on 08.11.2017.
@@ -30,38 +30,42 @@ public class FloatingView extends View {
 
     private boolean isClearing = false;
 
-    private float period = 0.05f;
-    private float waveHeight = 5f;
-
     private Context context;
+
+    int width = 0;
+    int height = 0;
 
     public FloatingView(Context context) {
         super(context);
 
-        initPaint();
-        initCoordinates();
         this.context = context;
     }
 
     public FloatingView(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        initPaint();
-        initCoordinates();
+        init();
         this.context = context;
     }
 
+    private void init() {
+        initPaint();
+
+        getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                initCoordinates();
+            }
+        });
+    }
+
     Point size = new Point();
-    Path path = new Path();
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
         Display display = getDisplay();
-
-        int width = 0;
-        int height = 0;
 
         if (display != null && size != null) {
             display.getSize(size);
@@ -71,11 +75,9 @@ public class FloatingView extends View {
         }
 
         if (isClearing) {
-            //coordinatesList.clear();
             canvas.drawColor(Color.WHITE);
 
             isClearing = false;
-            //canvas.drawLine(0, 100, width, 100, paint);
         }
         else {
             if (!coordinatesList.isEmpty()) {
@@ -100,21 +102,10 @@ public class FloatingView extends View {
                         float ctX = coordinatesList.get(i).xDevice;
                         float ctY = coordinatesList.get(i).thrdY + 200;
 
-                        //if ((Math.abs(ffY - cfY) >= 1) | ffY - cfY == 0)
-                            canvas.drawLine(ffX, ffY, cfX, cfY, paint);
-                        //if ((Math.abs(fsY - csY) >= 1) | fsY - csY == 0)
-                            canvas.drawLine(fsX, fsY, csX, csY, paint);
-                        //if ((Math.abs(ftY - ctY) >= 1) | ftY - ctY == 0)
-                            canvas.drawLine(ftX, ftY, ctX, ctY, paint);
-                        //canvas.drawLine(fX, fY, cX, cY, paint);
-                        //path.quadTo(fX, fY, cX, cY);
-                        //canvas.drawPath(path, paint);
-                        //canvas.drawCircle(cfX, cfY, 2, paint);
-                        //canvas.drawCircle(csX, csY, 2, paint);
-                        //canvas.drawCircle(ctX, ctY, 2, paint);
-                        //canvas.drawPoint(cfX, cfY, paint);
-                        //canvas.drawPoint(csX, csY, paint);
-                        //canvas.drawPoint(ctX, ctY, paint);
+                        canvas.drawLine(ffX, ffY, cfX, cfY, paint);
+                        //canvas.drawLine(fsX, fsY, csX, csY, paint);
+                        //canvas.drawLine(ftX, ftY, ctX, ctY, paint);
+
                     }
                 }
 
@@ -125,16 +116,17 @@ public class FloatingView extends View {
     private void initPaint() {
         paint.setColor(Color.BLUE);
         paint.setStrokeWidth(4f);
-
     }
 
     private void initCoordinates() {
-        int x = 540;
-        int y = 100;
-        int xBound = x/2;
+        Log.d("WIDTH", getWidth() + "");
+        Log.d("HEIGHT", getHeight() + "");
 
+        int x = getWidth() / 2;
+        int y = getHeight() / 4;
+        int xBound = x / 2;
 
-        for (int i = -xBound; i <= xBound; i++) {
+        for (int i = -xBound; i < xBound; i++) {
             coordinatesList.add(new Coordinates(x, i, y, y, y));
             x -= 1;
         }
@@ -142,47 +134,6 @@ public class FloatingView extends View {
         invalidate();
     }
 
-    float x = 0;
-
-    public void setValue(float val) {
-
-        /*Display display = getDisplay();
-        display.getSize(size);
-        int height = size.y;
-        int width = size.x;
-
-        int valTopBound = 200;
-        int bottomBound = 0;
-        int heightTopBound = 100;
-        float periodTopBound = 0.3f;
-        //int heightBottomBound = 0
-
-        //sin (y) = a + bsin(cx + d)
-        float y;
-        //Высота над Ox (всегда константа для определенного девайса будет неизменяемой:
-        // равна размер View по у/2)
-        float a = 100;
-        //Высота волны (крайним значением будет высота view/2)
-        float b = waveHeight /*((val * 100)/200) + 0.0f*/;
-        //Период(устанавливать значения от 0 и до 0.3)
-        /*float c = /*(float) (val * (0.3 - 0) / 200) + 0.0f*/ /*period;*/
-        //Сдвиг волны от нулевого уровня в начальный момент времени
-        //(в данном случае ни на что не влияет)
-        /*float d = 0;
-
-        if (!coordinatesList.isEmpty()) {
-            coordinateAdjustment();
-        }
-
-        y = (float) (a + (b * Math.sin(c * x + d)));
-
-        Coordinates cd = new Coordinates(width, y);
-        coordinatesList.add(cd);
-
-        x += 1f;
-
-        invalidate();*/
-    }
 
     public void addValue(double value) {
         values.add(value);
@@ -203,13 +154,20 @@ public class FloatingView extends View {
 
                         //((MainActivity) context).runOnUiThread(helper);
                         if (!values.isEmpty()) {
-                            modifyCoordinates(values.pollFirst(), true);
+                            modifyCoordinates();
+
+                            try {
+                                recountValues(values.pollFirst());
+                            }
+                            catch (NoSuchElementException e) {
+                                Log.d("ERROR", "NO SUCH ELEMENT");
+                            }
                         }
-                        try {
-                            Thread.sleep(50);
+                        /*try {
+                            Thread.sleep(30);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
-                        }
+                        }*/
                     } while (true);
                 }
             }).start();
@@ -218,123 +176,185 @@ public class FloatingView extends View {
         isStarted = true;
     }
 
-    /*private void coordinateAdjustment() {
-        for (int i = coordinatesList.size() - 1; i > 0; i--) {
-            float x = coordinatesList.get(i).x;
+    private double oldAtt = 5;
+    private double newAtt = 5;
+    private static final int TOP_DP_BOUND = Short.MAX_VALUE; //20000;6000
 
-            if (x <= 0)
-                coordinatesList.remove(i);
-            else
-                coordinatesList.get(i).x = x - 1f;
-        }
-    }*/
+    boolean isDecrease;
+
+    private void recountValues(double x) {
+        if (x < 0)
+            x = 0;
+
+        if (x > TOP_DP_BOUND)
+            x = TOP_DP_BOUND;
+
+        x = TOP_DP_BOUND - x;
+
+        double attF = ((x * (5 - 0.1) / TOP_DP_BOUND) - 0.1);
+
+        //double attF = ((((x - 0) / (TOP_DP_BOUND - 0)) * (5 - 0.1)) + 0.1);
+
+        attF = 5 - attF;
+
+        if (attF < 0.1)
+            attF = 0.1f;
+
+        oldAtt = newAtt;
+        newAtt = attF;
+
+        if (oldAtt > newAtt)
+            isDecrease = true;
+        else
+            isDecrease = false;
+
+    }
 
     final DrawHelper helper = new DrawHelper();
 
-    private volatile double oldAtt = 1;
-    private static final int TOP_DP_BOUND = 96*2;
+    private static final double K = 8;
+    private static final float A = 10;
+    private static final float B = 6;
+    private static final float F = 0;
 
-    private synchronized void modifyCoordinates(double val, boolean a) {
+    private boolean isModifyingStarted = false;
+
+    ValueContainer vc = new ValueContainer(2f);
+
+    private synchronized void modifyCoordinates() {
         //formula gfn(x) = (K/K+x^4)^k
         //formula line(att) = (A*gfn(x) * cos(Bx - f))/att
         //Bounds of function is -1.5 n 1.5
         //Bounds of drawing axis are dynamic but in the current version they are fixed (0; 540)
 
-        double x;
-        double K = 8;
-        double attF;//Must be set in range [0.05; 25]
-        double oldAtt;
-        float A = 10;
-        float B = 10;
-        float F = 0;
-        double gfn;
-        boolean isDecrease;
+        if(!isModifyingStarted) {
+            isModifyingStarted = true;
 
-        oldAtt = this.oldAtt;
+            double attF = newAtt;
+            double attO = oldAtt;
 
-        final double localVal = val;
+            vc.setValue((float) newAtt);
 
-        val = TOP_DP_BOUND - val;
+            /*do {
+                try {
+                    Thread.sleep(15);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }*/
 
-        attF = (double) ((val * (1 - 0.05) / TOP_DP_BOUND) - 0.05f);
+                //Log.d("VALUES", values.size() + "");
 
-        Log.d("ATT", attF + "");
+            ((Activity) context).runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    ValueAnimator va = ValueAnimator.ofFloat((float) oldAtt, (float) newAtt);
+                    va.setDuration(120);
+                    va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                        @Override
+                        public void onAnimationUpdate(ValueAnimator animation) {
+                            double x;
+                            double gfn;
 
-        if (attF < 0.05)
-            attF = 0.05f;
+                            for (int i = 0; i < coordinatesList.size(); i++) {
+                                x = coordinatesList.get(i).xFunction;
 
-        final double attFLocal = attF;
+                                if (x >= 0)
+                                    x = (float) (((x * (1.5 - 0)) / (getWidth() / 4)) + 0);
+                                else
+                                    x = (float) -(((x * (1.5 - 0)) / (getWidth() / 4)) + 0);
+                                gfn = Math.pow(K / (K + Math.pow(x, 5)), K);
 
-        /*((Activity) context).runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(context, "val : " + localVal + " | " + "att : " + attFLocal, Toast.LENGTH_SHORT).show();
-            }
-        });*/
+                                coordinatesList.get(i).y = (float) ((A * gfn * Math.cos((B * x) - F)) / (Float) animation.getAnimatedValue());
+                                //coordinatesList.get(i).secY = (float) ((A * gfn * Math.cos((B * x) - F)) / ((Float) animation.getAnimatedValue() + 0.07f));
+                                //coordinatesList.get(i).thrdY = (float) ((A * gfn * Math.cos((B * x) - F)) / ((Float) animation.getAnimatedValue() + 0.03f));
+                            }
 
+                            //((Activity) context).runOnUiThread(helper);
+                            invalidate();
+                        }
+                    });
+                    va.start();
+                }
+            });
 
-        this.oldAtt = attF;
+                /*if (isDecrease) {
+                    attF -= 0.05;
+                } else {
+                    attF += 0.05;
+                }*/
 
-        do {
-            for (int i = 0; i < coordinatesList.size(); i++) {
-                x = coordinatesList.get(i).xFunction;
+            //} while ((isDecrease & attF >= newAtt) | (!isDecrease & attF <= newAtt));
+        }
 
-                if (x >= 0)
-                    x = (float) (((x * (1.5 - 0)) / 270) + 0);
-                else
-                    x = (float) -(((x * (1.5 - 0)) / 270) + 0);
-                gfn = Math.pow(K / (K + Math.pow(x, 5)), K);
-
-                coordinatesList.get(i).y = (float) ((A * gfn * Math.cos((B * x) - F)) / oldAtt);
-                coordinatesList.get(i).secY = (float) ((A * gfn * Math.cos((B * x) - F)) / (oldAtt + 0.07f));
-                coordinatesList.get(i).thrdY = (float) ((A * gfn * Math.cos((B * x) - F)) / (oldAtt+ 0.03f));
-            }
-
-            ((Activity) context).runOnUiThread(helper);
-
-            if (oldAtt < attF) {
-                isDecrease = false;
-                oldAtt += 0.01;
-            }
-            else {
-                isDecrease = true;
-                oldAtt -= 0.01;
-            }
-
-            try {
-                Thread.sleep(20);
-            }
-            catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
-        } while ((isDecrease & oldAtt >= attF) | (!isDecrease & oldAtt <= attF));
+        isModifyingStarted = false;
     }
+
+
+
+    /*public void modifyCoordinates() {
+        //formula gfn(x) = (K/K+x^4)^k
+        //formula line(att) = (A*gfn(x) * cos(Bx - f))/att
+        //Bounds of function is -1.5 n 1.5
+        //Bounds of drawing axis are dynamic but in the current version they are fixed (0; 540)
+
+        if(!isModifyingStarted) {
+            isModifyingStarted = true;
+
+            double x;
+            double gfn;
+            double attF = oldAtt;
+            double step = Math.abs(attF - newAtt) / 5;
+            Log.d("STEP", step + "");
+
+            for (int l = 0; l < 3; l++) {
+                try {
+                    Thread.sleep(12);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                Log.d("VALUES", values.size() + "");
+
+                for (int i = 0; i < coordinatesList.size(); i++) {
+                    x = coordinatesList.get(i).xFunction;
+
+                    if (x >= 0)
+                        x = (float) (((x * (1.5 - 0)) / 120) + 0);
+                    else
+                        x = (float) -(((x * (1.5 - 0)) / 120) + 0);
+                    gfn = Math.pow(K / (K + Math.pow(x, 5)), K);
+
+                    coordinatesList.get(i).y = (float) ((A * gfn * Math.cos((B * x) - F)) / attF);
+                    coordinatesList.get(i).secY = (float) ((A * gfn * Math.cos((B * x) - F)) / (attF + 0.07f));
+                    coordinatesList.get(i).thrdY = (float) ((A * gfn * Math.cos((B * x) - F)) / (attF + 0.03f));
+                }
+
+                ((Activity) context).runOnUiThread(helper);
+
+                if (isDecrease) {
+                    attF -= step;
+                } else {
+                    attF += step;
+                }
+            }
+        }
+
+        isModifyingStarted = false;
+    }*/
+
+
+    /*private void modifyCoordinates(double sample) {
+        //formula k = 1/|x|
+        //formula y = sin(x) * k
+
+        double k;
+        double y;
+
+    }*/
 
     public void clear() {
         isClearing = true;
         invalidate();
-    }
-
-    private float convertNumber(float num) {
-
-        return 0.0f;
-    }
-
-    public float getPeriod() {
-        return period;
-    }
-
-    public void setPeriod(float period) {
-        this.period = period;
-    }
-
-    public float getWaveHeight() {
-        return waveHeight;
-    }
-
-    public void setWaveHeight(float waveHeight) {
-        this.waveHeight = waveHeight;
     }
 
     class DrawHelper implements Runnable {
@@ -344,6 +364,23 @@ public class FloatingView extends View {
         @Override
         public void run() {
             invalidate();
+        }
+    }
+
+    class ValueContainer {
+
+        float value;
+
+        ValueContainer(float value) {
+            this.value = value;
+        }
+
+        public float getValue() {
+            return value;
+        }
+
+        public void setValue(float value) {
+            this.value = value;
         }
     }
 

@@ -1,12 +1,6 @@
 package com.example.hmmmk.floatingline;
 
 import android.content.Context;
-import android.content.Intent;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,27 +9,18 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Random;
-
 public class MainActivity extends AppCompatActivity implements RecordResultHandler /* implements RecognitionListener*/ {
 
     private Context context = this;
     private MainActivity activity = this;
 
     private Button startBtn;
-    private FloatingView floatingView;
+    //private FloatingView floatingView;
     private Spinner periodSpn;
     private Spinner wHeightSpn;
+    private NewFloatingView newFloatingView;
 
     private final SendHelper sh = new SendHelper();
-
-    int[] rates = {8000, 11025, 22050, 44100, 48000/*, 96000 */};
-    int[] channels = {AudioFormat.CHANNEL_IN_MONO, AudioFormat.CHANNEL_IN_STEREO};
-    int[] encodings  = {AudioFormat.ENCODING_PCM_8BIT, AudioFormat.ENCODING_PCM_16BIT};
-
-    //private SpeechRecognizer sr;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,178 +28,92 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
         setContentView(R.layout.activity_main);
 
         startBtn = findViewById(R.id.start_btn);
-        floatingView = findViewById(R.id.floating_view);
+        //floatingView = findViewById(R.id.floating_view);
+        newFloatingView = findViewById(R.id.new_floating_view);
         periodSpn = findViewById(R.id.wave_period_spn);
         wHeightSpn = findViewById(R.id.wave_height_spn);
-
-        /*sr = SpeechRecognizer.createSpeechRecognizer(this);
-        sr.setRecognitionListener(this);*/
-
-
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,"voice.recognition.test");
-
-        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,5);
-
-        //sr.startListening(intent);
 
         startBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                floatingView.clear();
-                floatingView.start();
-                //floatingView.setPeriod(Float.valueOf(periodSpn.getSelectedItem().toString()));
-                //floatingView.setWaveHeight(Float.valueOf(wHeightSpn.getSelectedItem().toString()));
+                //floatingView.clear();
+                //floatingView.start();
 
-                //final Random r = new Random(System.currentTimeMillis());
+                //AudioReceiverRunnable audioReceiver = new AudioReceiverRunnable(context, activity);
 
-                AudioFormatInfo info = getFormat();
-                
-                AudioReceiverRunnable audioReceiver = new AudioReceiverRunnable(context, sh, /*info,*/
-                        activity);
+                //new Thread(audioReceiver).start();
+                newFloatingView.start();
 
-                new Thread(audioReceiver).start();
-
-                /*new Thread(new Runnable() {
-
-                    float count = 0.25f;
-
+                new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        do {
+                        for (int i = -61; i <= 61; i++) {
+                            final int l = i;
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    newFloatingView.updateWithLevel(normalizedDecibels(l));
+                                }
+                            });
 
-                            //sh.setCurrentValue(r.nextInt(200));
-                            sh.setCurrentValue((int) ((Math.random() * 15f) + 0));
-
-                            //sh.setCurrentValue(count);
-
-                            runOnUiThread(sh);
                             try {
-                                Thread.sleep(50);
-                            } catch (InterruptedException e) {
+                                Thread.sleep(100);
+                            }
+                            catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
-                        } while (true);
+                        }
                     }
-                }).start();*/
+                }).start();
             }
         });
     }
-
-    public AudioFormatInfo getFormat() {
-        AudioFormatInfo info = new AudioFormatInfo();
-
-        for(int enc : encodings)
-        {
-            for(int ch : channels)
-            {
-                for(int rate : rates)
-                {
-                    int t = AudioRecord.getMinBufferSize(rate, ch, enc);
-
-                    if((t != AudioRecord.ERROR) && (t != AudioRecord.ERROR_BAD_VALUE)) {
-                        info.setAudioFormat(enc);
-                        info.setChannelConfig(ch);
-                        info.setSampleRateInHz(rate);
-                    }
-
-                }
-            }
-        }
-
-        return info;
-    }
-
-    short max = 0;
-    short min = 0;
 
     @Override
     public void receiveResults(final short[] buffers) {
-        final StringBuilder byteResult = new StringBuilder();
+        int local = 0;
 
-        //if (Collections.max(Arrays.asList(buffers)) > max)
-        /*for (int i = 0; i < buffers.length; i++) {
-            if (buffers[i] > max)
-                max = buffers[i];
+        for (int i = 0; i < buffers.length; i++) {
+            local += Math.abs(buffers[i]);
+        }
 
-            if (buffers[i] < min)
-                min = buffers[i];
+        local /= buffers.length;
+
+       // Log.d("BUFFER", + local + "");
+        sh.setCurrentValue(local);
+
+        /*try {
+            Thread.sleep(45);
+        }
+        catch (InterruptedException e) {
+            e.printStackTrace();
         }*/
 
-        for (short buff : buffers) {
-            byteResult.append(String.valueOf(buff));
-            byteResult.append(":");
-        }
-
-        for (int x = 0; x < 540; x++) {
-            //int index = (int) (((x * 1.0f) / 540) * buffers.length);
-            double db = 0;
-
-            if (buffers[x] != 0) {
-                db = (20 * Math.log10(((double) Math.abs(buffers[x]) / 8)))
-                    /*SignalPower.calculatePowerDb(buffers, x, 1)
-                    getAudioVolume(buffers)*/;
-                //Log.d("BUFFERS", buffers[index] + "");
-                //Log.d("TAG", db + "");
-            }
-
-            if (sh.getCurrentValue() != db) {
-                Log.d("TAG", (db + 96) + "");
-                sh.setCurrentValue(db + 96);
-            }
-
-            runOnUiThread(sh);
-        }
-
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                //Toast.makeText(context, /*byteResult.toString()*/ getAudioVolume(buffers) + "",
-                  //      Toast.LENGTH_SHORT).show();
-            }
-        });
+        runOnUiThread(sh);
     }
 
-    /**
-     * Functionality that gets the sound level out of the sample
-     */
-    private float getAudioVolume(short [] buffer) {
-
-        float lastLevel = 0;
-
-        try {
-
-            int bufferReadResult;
-
-            if (buffer != null && buffer.length > 0) {
-
-                // Sense the voice…
-
-                bufferReadResult = buffer.length;
-                double sumLevel = 0;
-
-                for (int i = 0; i < bufferReadResult; i++) {
-                    sumLevel += buffer[i];
-                }
-
-                lastLevel = (float) Math.abs((sumLevel / bufferReadResult));
-            }
-        }
-        catch (Exception e) {
-            e.printStackTrace();
+    private Float normalizedDecibels(float db) {
+        if (db < -60.0f || db == 0.0f) {
+            return 0.0f;
         }
 
-        return lastLevel;
+        return (float) Math.pow((Math.pow(10.0f, 0.05f * db) - Math.pow(10.0f, 0.05f * -60.0f)) *
+                (1.0f / (1.0f - Math.pow(10.0f, 0.05f * -60.0f))), 1.0f / 2.0f );
     }
 
     class SendHelper implements Runnable {
 
         private double currentValue = 0;
+        private int numberOfVals = 0;
 
         @Override
         public void run() {
-            floatingView.addValue(currentValue);
+            if (numberOfVals == 5) {
+                //floatingView.addValue(currentValue);
+
+                numberOfVals = 0;
+                currentValue = 0;
+            }
         }
 
         public double getCurrentValue() {
@@ -222,10 +121,18 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
         }
 
         public void setCurrentValue(double currentValue) {
-            this.currentValue = currentValue;
+            if (numberOfVals == 4) {
+                numberOfVals++;
+                this.currentValue += currentValue;
+                this.currentValue /= 5;
+                run();
+            }
+            else {
+                numberOfVals++;
+                this.currentValue += currentValue;
+            }
         }
     }
-
 }
 
 

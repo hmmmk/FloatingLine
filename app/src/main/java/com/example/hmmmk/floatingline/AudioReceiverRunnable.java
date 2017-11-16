@@ -5,8 +5,6 @@ import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Process;
-import android.widget.Toast;
 
 /**
  * Created by hmmmk___ on 13.11.2017.
@@ -17,20 +15,13 @@ public class AudioReceiverRunnable implements Runnable {
     private Context context;
     private Activity activity;
 
-    private MainActivity.SendHelper sh;
-    private AudioFormatInfo info;
     private boolean isRunning;
     private boolean isShouldContinue;
-    private AudioRecord audioRecord;
     private RecordResultHandler handler;
 
-    private static final int SAMPLE_RATE = 8000;
-    private static final int BUFF_COUNT = 32;
+    private static final int SAMPLE_RATE = 44100;
 
-    public AudioReceiverRunnable(Context context, MainActivity.SendHelper sh, /*AudioFormatInfo info,*/
-                                 RecordResultHandler handler) {
-        this.sh = sh;
-        //this.info = info;
+    public AudioReceiverRunnable(Context context, RecordResultHandler handler) {
         this.context = context;
         this.handler = handler;
         isRunning = true;
@@ -87,7 +78,6 @@ public class AudioReceiverRunnable implements Runnable {
 
         record.startRecording();
 
-
         long shortsRead = 0;
 
         while (isShouldContinue) {
@@ -101,138 +91,4 @@ public class AudioReceiverRunnable implements Runnable {
         record.stop();
         record.release();
     }
-
-    /*@Override
-    public void run() {
-        Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO);
-
-        isRunning = true;
-
-        int buffSize = AudioRecord.getMinBufferSize(info.getSampleRateInHz(), info.getChannelConfig(),
-                info.getAudioFormat());
-
-
-        if(buffSize == AudioRecord.ERROR)
-        {
-
-            activity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, "getMinBufferSize returned ERROR",
-                            Toast.LENGTH_SHORT).show();
-                }
-            });
-            return;
-        }
-
-        if(buffSize == AudioRecord.ERROR_BAD_VALUE)
-        {
-            activity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, "getMinBufferSize returned ERROR_BAD_VALUE",
-                            Toast.LENGTH_SHORT).show();
-                }
-            });
-
-            return;
-        }
-
-        if(info.getAudioFormat() != AudioFormat.ENCODING_PCM_16BIT)
-        {
-            activity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, "unknown format", Toast.LENGTH_SHORT).show();
-                }
-            });
-            return;
-        }
-
-        short[][] buffers = new short[BUFF_COUNT][buffSize >> 1];
-
-        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
-                info.getSampleRateInHz(),
-                info.getChannelConfig(), info.getAudioFormat(),
-                buffSize);
-
-        if(audioRecord.getState() != AudioRecord.STATE_INITIALIZED)
-        {
-            activity.runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    Toast.makeText(context, "getState() != STATE_INITIALIZED", Toast.LENGTH_SHORT).show();
-                }
-            });
-
-            return;
-        }
-
-        try
-        {
-            audioRecord.startRecording();
-        }
-        catch(IllegalStateException e)
-        {
-            e.printStackTrace();
-            return;
-        }
-
-        int count = 0;
-
-        while(isRunning)
-        {
-            int samplesRead = audioRecord.read(buffers[count], 0, buffers[count].length);
-
-            if(samplesRead == AudioRecord.ERROR_INVALID_OPERATION)
-            {
-                activity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(context, "read() returned ERROR_INVALID_OPERATION",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-                return;
-            }
-
-            if(samplesRead == AudioRecord.ERROR_BAD_VALUE)
-            {
-                activity.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(context, "read() returned ERROR_BAD_VALUE",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-                return;
-            }
-
-            // посылаем оповещение обработчикам
-            handler.receiveResults(buffers[count]);
-
-            count = (count + 1) % BUFF_COUNT;
-        }
-
-        try
-        {
-            try
-            {
-                audioRecord.stop();
-            }
-            catch(IllegalStateException e)
-            {
-                e.printStackTrace();
-                return;
-            }
-        }
-        finally
-        {
-            // освобождаем ресурсы
-            audioRecord.release();
-            audioRecord = null;
-        }
-    }*/
 }
