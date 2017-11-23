@@ -1,5 +1,6 @@
 package com.example.hmmmk.floatingline;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -12,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.LinkedList;
 import java.util.Locale;
@@ -24,14 +26,14 @@ public class WaveView extends View {
 
     private Context context;
 
-    static Float kDefaultFrequency = 1.5f;
-    static Float kDefaultAmplitude = 1.0f;
-    static Float kDefaultIdleAmplitude = 0.01f;
-    static Float kDefaultNumberOfWaves = 5.0f;
-    static Float kDefaultPhaseShift = -0.15f;
-    static Float kDefaultDensity = 5.0f;
-    static Float kDefaultPrimaryLineWidth = 5.0f;
-    static Float kDefaultSecondaryLineWidth = 3.0f;
+    private static Float kDefaultFrequency = 1.5f;
+    private static Float kDefaultAmplitude = 1.0f;
+    private static Float kDefaultIdleAmplitude = 0.01f;
+    private static Float kDefaultNumberOfWaves = 5.0f;
+    private static Float kDefaultPhaseShift = -0.15f;
+    private static Float kDefaultDensity = 5.0f;
+    private static Float kDefaultPrimaryLineWidth = 5.0f;
+    private static Float kDefaultSecondaryLineWidth = 3.0f;
 
     private int waveColor = Color.WHITE;
     private float frequency;
@@ -51,13 +53,18 @@ public class WaveView extends View {
     private int screenHeight;
     private int screenWidth;
 
+    private float oldLevel;
+    private float newLevel;
+
+    private int ANIMATION_TOP_BOUND = 100;
+    private int ANIMATION_BOTTOM_BOUND = 50;
+
     private LinkedList<Float> vals = new LinkedList<>();
 
     public WaveView(Context c) {
         super(c);
 
         context = c;
-        //init();
         setUp();
     }
     
@@ -65,7 +72,6 @@ public class WaveView extends View {
         super(c, set);
 
         context = c;
-        //init();
         setUp();
     }
 
@@ -84,16 +90,21 @@ public class WaveView extends View {
                 @Override
                 public void run() {
 
+                    /*updateWithLevel(5.1f);
+                    ((Activity) context).runOnUiThread(dh);*/
+
                     do {
                         if (vals.peekFirst() != null) {
-                            updateWithLevel(vals.pollFirst());
+                            //updateWithLevel(vals.pollFirst());
+                            dh.setLevel(vals.pollFirst());
                         } else
-                            updateWithLevel(0);
+                            dh.setLevel(oldLevel /*- 0.01f*/);
+                            //updateWithLevel(oldLevel - 0.02f);
 
                         ((Activity) context).runOnUiThread(dh);
 
                         try {
-                            Thread.sleep(20);
+                            Thread.sleep(17);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
@@ -105,10 +116,30 @@ public class WaveView extends View {
         }
     }
 
-    public void updateWithLevel(float level) {
-        Log.d(TAG, "Level " + level);
+    ValueAnimator animator = ValueAnimator.ofFloat();
+
+    public synchronized void updateWithLevel(final float level) {
         phase += phaseShift;
-        amplitude = Math.max(level, idleAmplitude);
+
+        if (!animator.isRunning()) {
+
+            float duration = Math.abs(oldLevel - level);
+
+            animator.setFloatValues(oldLevel, level);
+            duration = (float) (duration * (ANIMATION_TOP_BOUND - ANIMATION_BOTTOM_BOUND) / 0.9) + ANIMATION_BOTTOM_BOUND;
+            oldLevel = level;
+
+            animator.setDuration((int) duration);
+            animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                    amplitude = Math.max((Float) valueAnimator.getAnimatedValue(), idleAmplitude);
+
+                    invalidate();
+                }
+            });
+            animator.start();
+        }
     }
 
     public void addValue(float value) {
@@ -192,11 +223,20 @@ public class WaveView extends View {
 
     private class DrawHelper implements Runnable {
 
+        private float level = -0.1f;
+
         @Override
         public void run() {
-            do {
-                invalidate();
-            } while (true);
+            updateWithLevel(level);
+            //invalidate();
+        }
+
+        public float getLevel() {
+            return level;
+        }
+
+        public void setLevel(float level) {
+            this.level = level;
         }
     }
 }

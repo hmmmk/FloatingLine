@@ -15,7 +15,6 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
     private MainActivity activity = this;
 
     private Button startBtn;
-    //private FloatingView floatingView;
     private Spinner periodSpn;
     private Spinner wHeightSpn;
     private WaveView waveView;
@@ -36,9 +35,6 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
         startBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //floatingView.clear();
-                //floatingView.start();
-
                 AudioReceiverRunnable audioReceiver = new AudioReceiverRunnable(context, activity);
 
                 new Thread(audioReceiver).start();
@@ -53,35 +49,32 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
         double decibels = 0;
 
         for (int i = 0; i < buffers.length; i++) {
-            local += buffers[i];
+            if (Math.abs(buffers[i]) > local)
+                local = Math.abs(buffers[i]);
         }
-
-        local /= buffers.length;
-
-        /*if (local > 0)
-            decibels = (20 * Math.log10((double) local / Short.MAX_VALUE));
-        if (local < 0)
-            decibels = -(20 * Math.log10((double) local / Short.MAX_VALUE));*/
 
         sh.setCurrentValue(normalizedDecibels(local));
-
-        try {
-            Thread.sleep(40);
-        }
-        catch (InterruptedException e) {
-            e.printStackTrace();
-        }
 
         runOnUiThread(sh);
     }
 
     private float normalizedDecibels(float db) {
-        if (db < -60.0f) {
-            return 0.0f;
-        }
 
-        return (float) Math.pow((Math.pow(10.0f, 0.05f * db) - Math.pow(10.0f, 0.05f * -60.0f)) *
+        float newDb = (float) (20.0 * Math.log10((double) db / Short.MAX_VALUE));
+        float result = 0;
+
+        if (newDb >= 0.0f)
+            newDb = -5f;
+        if (newDb <= -60.0f)
+            newDb = -55.0f;
+
+        result = (float) Math.pow((Math.pow(10.0f, 0.05f * newDb) - Math.pow(10.0f, 0.05f * -60.0f)) *
                 (1.0f / (1.0f - Math.pow(10.0f, 0.05f * -60.0f))), 1.0f / 2.0f );
+
+        Log.d("DECIBELS", newDb + "");
+        Log.d("RESULT", result + "");
+
+        return result;
     }
 
     class SendHelper implements Runnable {
@@ -91,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
 
         @Override
         public void run() {
-            if (numberOfVals == 5) {
+            if (numberOfVals == 1) {
                 waveView.addValue((float) currentValue);
 
                 numberOfVals = 0;
@@ -104,10 +97,10 @@ public class MainActivity extends AppCompatActivity implements RecordResultHandl
         }
 
         public void setCurrentValue(double currentValue) {
-            if (numberOfVals == 4) {
+            if (numberOfVals == 0) {
                 numberOfVals++;
                 this.currentValue += currentValue;
-                this.currentValue /= 5;
+                this.currentValue /= 1;
                 run();
             }
             else {
